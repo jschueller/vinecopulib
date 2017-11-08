@@ -72,6 +72,30 @@ if(VINECOPULIB_SHARED_LIB)
         endif()
     endforeach ()
 
+    file(GLOB_RECURSE cppoptlib_h ${vinecopulib_includes}/cppoptlib/*.h)
+    foreach (file ${cppoptlib_h})
+        # Get directory, name and path for header/source files
+        get_filename_component(name_without_extension ${file} NAME_WE)
+        get_filename_component(directory ${file} DIRECTORY)
+        string(REGEX REPLACE ${vinecopulib_includes} ${vinecopulib_generated_includes}
+                header_folder ${directory})
+        set(header_file "${header_folder}/${name_without_extension}.h")
+
+        # Scrap file content
+        file(READ ${file} file_content)
+
+        # If header does not exists or has changed, generate new header file
+        if(EXISTS "${header_file}")
+            file(READ ${header_file} old_content)
+            string(COMPARE NOTEQUAL "${file_content}" "${old_content}" has_changed)
+            if(has_changed)
+                file(WRITE ${header_file} "${file_content}")
+            endif()
+        else()
+            file(WRITE ${header_file} "${file_content}")
+        endif()
+    endforeach ()
+
     file(GLOB_RECURSE vinecopulib_main_hpp ${vinecopulib_includes}/vinecopulib.hpp)
     file(GLOB_RECURSE vinecopulib_version_hpp ${vinecopulib_includes}/version.hpp)
     file(COPY ${vinecopulib_main_hpp} DESTINATION ${vinecopulib_generated_includes})
