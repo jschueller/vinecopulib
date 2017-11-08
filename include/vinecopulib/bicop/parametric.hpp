@@ -63,6 +63,12 @@ private:
     void check_parameters_upper(const Eigen::MatrixXd &parameters);
 
     void check_parameters_lower(const Eigen::MatrixXd &parameters);
+
+    Eigen::VectorXd gradient_pdf(
+        const Eigen::Matrix<double, Eigen::Dynamic, 2> &data,
+        const size_t par = static_cast<size_t>(0),
+        const double eps = 1e-3,
+        const double parscale = 1.0);
 };
 }
 

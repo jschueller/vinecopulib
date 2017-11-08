@@ -214,4 +214,48 @@ ParBicop::check_parameters_upper(const Eigen::MatrixXd &parameters)
 
 //! @}
 
+inline Eigen::VectorXd
+ParBicop::gradient_pdf(const Eigen::Matrix<double, Eigen::Dynamic, 2> &data,
+                       const size_t par,
+                       const double eps,
+                       const double parscale)
+{
+    // get parameter +/- eps
+    Eigen::VectorXd parameters = parameters_;
+    double par0 = parameters(par);
+    double par1 = par0 + eps;
+    double par2 = par0 - eps;
+
+    // check bounds
+    double ub = static_cast<double>(get_parameters_upper_bounds()(par));
+    double lb = static_cast<double>(get_parameters_lower_bounds()(par));
+    double eps1 = eps;
+    double eps2 = eps;
+    if (par1 > ub) {
+        par1 = ub;
+        eps1 = par1 - par0;
+    }
+    if (par2 < lb) {
+        par2 = lb;
+        eps2 = par0 - par2;
+    }
+
+    // adjust for parscale
+    par1 = par1 * parscale;
+    par2 = par2 * parscale;
+
+    // compute pdf for both parameter values
+    parameters(par) = par1;
+    set_parameters(parameters);
+    Eigen::VectorXd result = pdf(data);
+    parameters(par) = par2;
+    set_parameters(parameters);
+    result = (result - pdf(data))/(eps1 + eps2);
+
+    // restore initial parameter and return result
+    parameters(par) = par0;
+    set_parameters(parameters);
+    return result;
+}
+
 }
