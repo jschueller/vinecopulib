@@ -14,7 +14,7 @@ using namespace vinecopulib;
 using namespace tools_stl;
 std::vector<int> rotations = {0, 90};
 
-// Test if the C++ implementation of the basic methods is correct
+/*// Test if the C++ implementation of the basic methods is correct
 TEST_P(ParBicopTest, parametric_bicop_is_correct) {
     if (needs_check_) {
         std::string cmd = std::string(RSCRIPT) + std::string(TEST_BICOP);
@@ -103,7 +103,7 @@ TEST_P(ParBicopTest, parametric_bicop_is_correct) {
                         << bicop_.str();
         EXPECT_NO_THROW(bicop_.loglik(u.block(0, 0, 10, 2))) << bicop_.str();
     }
-}
+}*/
 
 // Test if the C++ implementation of select method using the mle is correct
 TEST_P(ParBicopTest, bicop_select_mle_bic_is_correct) {

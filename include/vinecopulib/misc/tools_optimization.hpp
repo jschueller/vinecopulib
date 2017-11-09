@@ -9,6 +9,7 @@
 #include <vinecopulib/misc/tools_bobyqa.hpp>
 #include <vinecopulib/misc/tools_eigen.hpp>
 #include <vinecopulib/bicop/parametric.hpp>
+#include <cppoptlib/meta.h>
 
 namespace vinecopulib {
 
@@ -23,37 +24,8 @@ typedef struct
     unsigned int objective_calls; //!< number of evaluations of the objective.
 } ParBicopOptData;
 
-//! @brief A class for the controls to Bobyqa
-class BobyqaControls
-{
-public:
 
-    BobyqaControls();
-
-    BobyqaControls(double initial_trust_region,
-                   double final_trust_region,
-                   int maxeval);
-
-    double get_initial_trust_region();
-
-    double get_final_trust_region();
-
-    int get_maxeval();
-
-private:
-    double initial_trust_region_; //! Initial trust region
-    double final_trust_region_; //! Final trust region
-    int maxeval_; //! Maximal number of evaluations of the objective
-
-    //! Sanity checks
-    //! @{
-    void check_parameters(double initial_trust_region,
-                          double final_trust_region,
-                          int maxeval);
-    //! @}
-};
-
-//! @brief A class for optimization (wrapping Bobyqa).
+//! @brief A class for optimization (wrapping CppNumericalSolvers).
 class Optimizer
 {
 public:
@@ -61,9 +33,9 @@ public:
               const Eigen::MatrixXd &lower_bounds,
               const Eigen::MatrixXd &upper_bounds);
 
-    void set_controls(double initial_trust_region,
-                      double final_trust_region,
-                      int maxeval);
+    void set_controls(size_t iterations,
+                      double xDelta,
+                      double fDelta);
 
     Eigen::VectorXd optimize(Eigen::VectorXd initial_parameters,
                              std::function<double(void *, long,
@@ -72,7 +44,7 @@ public:
 
 private:
     unsigned int n_parameters_;
-    BobyqaControls controls_;
+    cppoptlib::Criteria<double> controls_;
     Eigen::MatrixXd lb_;
     Eigen::MatrixXd ub_;
 };

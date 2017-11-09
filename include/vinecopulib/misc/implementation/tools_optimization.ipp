@@ -5,14 +5,17 @@
 // vinecopulib or https://vinecopulib.github.io/vinecopulib/.
 
 #include <vinecopulib/misc/tools_stats.hpp>
+#include <cppoptlib/boundedproblem.h>
+#include <cppoptlib/solver/lbfgsbsolver.h>
 #include <boost/math/tools/minima.hpp>
 #include <iostream>
+
 namespace vinecopulib {
 
 //! Utilities for numerical optimization (based on Bobyqa)
 namespace tools_optimization {
 
-//! creates an Optimizer using the default controls, see BobyqaControls.
+//! creates an Optimizer using the default controls, see CppNumericalSolvers.
 //!
 //! @param n_parameters Number of parameters to optimize
 //! @param lower_bounds
@@ -26,95 +29,24 @@ inline Optimizer::Optimizer(unsigned int n_parameters,
         throw std::runtime_error("n_parameters should be larger than 0.");
     }
     n_parameters_ = n_parameters;
-    controls_ = BobyqaControls();
+    controls_ = cppoptlib::Criteria<double>::defaults();
     lb_ = lower_bounds;
     ub_ = upper_bounds;
 }
 
 //! set the optimizer's controls.
 //!
-//! @param initial_trust_region initial trust region.
-//! @param final_trust_region final trust region.
-//! @param maxeval maximal number of evaluations of the objective.
-inline void Optimizer::set_controls(double initial_trust_region,
-                                    double final_trust_region,
-                                    int maxeval)
+//! @param interations Maximum number of iterations.
+//! @param xDelta Minimum change in parameter vector.
+//! @param fDelta Minimum change in cost function.
+inline void Optimizer::set_controls(size_t iterations,
+                                    double xDelta,
+                                    double fDelta)
 {
-    controls_ = BobyqaControls(initial_trust_region,
-                               final_trust_region,
-                               maxeval);
+    controls_.iterations = iterations;
+    controls_.xDelta = xDelta;
+    controls_.fDelta = fDelta;
 }
-
-//! Create controls using the default contructor
-//!
-//! The defaults are
-//! ```
-//! initial_trust_region_ = 1e-4;
-//! final_trust_region_ = 1e3;
-//! maxeval_ = 1000;
-//! ```
-inline BobyqaControls::BobyqaControls()
-{
-    initial_trust_region_ = 1e-4;
-    final_trust_region_ = 1e3;
-    maxeval_ = 1000;
-}
-
-//! Create controls by passing the arguments
-//!
-//! @param initial_trust_region initial trust region.
-//! @param final_trust_region final trust region.
-//! @param maxeval maximal number of evaluations of the objective.
-inline BobyqaControls::BobyqaControls(double initial_trust_region,
-                                      double final_trust_region,
-                                      int maxeval)
-{
-    check_parameters(initial_trust_region, final_trust_region, maxeval);
-    initial_trust_region_ = initial_trust_region;
-    final_trust_region_ = final_trust_region;
-    maxeval_ = maxeval;
-}
-
-inline void BobyqaControls::check_parameters(double initial_trust_region,
-                                             double final_trust_region,
-                                             int maxeval)
-{
-    if (initial_trust_region <= 0) {
-        throw std::runtime_error(
-            "initial_trust_region should be larger than 0");
-    }
-    if (final_trust_region <= 0) {
-        throw std::runtime_error("final_trust_region should be larger than 0");
-    }
-    if (maxeval <= 0) {
-        throw std::runtime_error("maxeval should be larger than 0");
-    }
-}
-
-//! @name Getters and setters
-//! @{
-
-//! @return the initial trust region.
-inline double
-BobyqaControls::get_initial_trust_region()
-{
-    return initial_trust_region_;
-}
-
-//! @return the final trust region.
-inline double
-BobyqaControls::get_final_trust_region()
-{
-    return final_trust_region_;
-}
-
-//! @return the maximal number of evaluations of the objective.
-inline int BobyqaControls::get_maxeval()
-{
-    return maxeval_;
-}
-
-//! @}
 
 //! @name (Pseudo-) maximum likelihood estimation
 //! @param f_data a pointer to a ParBicopOptData object.
@@ -151,46 +83,115 @@ inline double pmle_objective(void *f_data, long n, const double *x)
 
 //! @}
 
+class mle_problem : public cppoptlib::BoundedProblem<double>
+{
+public:
+    using Superclass = cppoptlib::BoundedProblem<double>;
+    using typename Superclass::TVector;
+
+    mle_problem(std::function<double(void *, long, const double *)> objective,
+                long n_parameters,
+                void *f_data) :
+        Superclass(n_parameters), n_parameters_(n_parameters),
+        objective_(objective), f_data_(f_data) {}
+
+    double value(const TVector &x) {
+        double *par = new double[n_parameters_];
+        Eigen::VectorXd::Map(par, n_parameters_) = x.array();
+        double res = objective_(f_data_, n_parameters_, par);
+        delete[] par;
+        return res;
+    }
+
+    void gradient(const TVector &x, TVector &grad) {
+        Eigen::VectorXd parameters = x;
+        double eps = 1e-3;
+        double parscale = 1.0;
+
+        //std::cout << "par:" << x << std::endl;
+        for (size_t par = static_cast<size_t>(0); par < n_parameters_; ++par) {
+            // get parameter +/- eps
+            double par0 = parameters(par);
+            double par1 = par0 + eps;
+            double par2 = par0 - eps;
+
+            // check bounds
+            double ub = static_cast<double>(upperBound()(par));
+            double lb = static_cast<double>(lowerBound()(par));
+            double eps1 = eps;
+            double eps2 = eps;
+            if (par1 > ub) {
+                par1 = ub;
+                eps1 = par1 - par0;
+            }
+            if (par2 < lb) {
+                par2 = lb;
+                eps2 = par0 - par2;
+            }
+
+            // adjust for parscale
+            par1 = par1 * parscale;
+            par2 = par2 * parscale;
+
+            // compute objective for both parameter values
+            parameters(par) = par1;
+            double result1 = value(parameters);
+            parameters(par) = par2;
+            double result2 = value(parameters);
+
+            // compute gradient and restore initial parameter value
+            grad(par) = (result1 - result2)/(eps1 + eps2);
+            parameters(par) = par0;
+            //std::cout << par << ", " << par0 << ", "  << result1 << ", "
+            //          << result2 << ", "  << grad(par) << std::endl;
+        }
+    }
+
+    long n_parameters_;
+    std::function<double(void *, long, const double *)> objective_;
+    void *f_data_;
+};
+
 //! solve the optimization problem.
 //!
 //! @param initial_parameters of starting values for the optimization
 //!     algorithm.
 //! @return the optimal parameters.
-inline Eigen::VectorXd Optimizer::optimize(Eigen::VectorXd initial_parameters,
-                                           std::function<double(void *, long,
-                                                                const double *)>
-                                           objective,
-                                           void *data)
+inline Eigen::VectorXd Optimizer::optimize(
+    Eigen::VectorXd initial_parameters,
+    std::function<double(void *, long, const double *)> objective,
+    void *data)
 {
     if (initial_parameters.size() != n_parameters_) {
         throw std::runtime_error("initial_parameters.size() should be n_parameters_.");
     }
 
+    double eps = 1e-4;
+    lb_ = lb_.array() + eps;
+    ub_ = ub_.array() - eps;
     Eigen::VectorXd optimized_parameters = initial_parameters;
     if (n_parameters_ > 1) {
-        //const int number_interpolation_conditions = (n_parameters_ + 1) *
-        //        (n_parameters_ + 2)/2;
-        int number_interpolation_conditions = n_parameters_ + 3;
-        auto f = [data, objective](long n, const double *x) -> double {
-            return objective(data, n, x);
-        };
-        auto result =
-            tools_bobyqa::bobyqa(f, n_parameters_,
-                               number_interpolation_conditions,
-                               initial_parameters, lb_, ub_,
-                               controls_.get_initial_trust_region(),
-                               controls_.get_final_trust_region(),
-                               controls_.get_maxeval());
-        optimized_parameters = result.first;
+        // create problem and set bounds
+        mle_problem problem(objective, n_parameters_, data);
+        problem.setBoxConstraint(lb_, ub_);
+
+        // create solver and set controls
+        // maxiterations = 100, deltax = 1e-4, delta = 1e-4 * sample size
+        cppoptlib::LbfgsbSolver<mle_problem> solver;
+        double n = static_cast<double>((static_cast<ParBicopOptData *>(data))->U.rows());
+        set_controls(100, eps, eps * n);
+        solver.setStopCriteria(controls_);
+
+        // optimize
+        solver.minimize(problem, optimized_parameters);
     } else {
-        double eps = 1e-6;
         auto f = [data, objective](double x) -> double {
             return objective(data, 1, &x);
         };
         auto result =
             boost::math::tools::brent_find_minima(f,
-                                                  static_cast<double>(lb_(0)) + eps,
-                                                  static_cast<double>(ub_(0)) - eps,
+                                                  static_cast<double>(lb_(0)),
+                                                  static_cast<double>(ub_(0)),
                                                   20);
         optimized_parameters(0) = result.first;
     }
