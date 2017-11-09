@@ -41,8 +41,6 @@ private:
     virtual double generator_derivative(const double &u) = 0;
 
     virtual double generator_derivative2(const double &u) = 0;
-
-    Eigen::VectorXd get_start_parameters(const double tau);
 };
 }
 

@@ -71,4 +71,10 @@ inline Eigen::MatrixXd Bb6Bicop::tau_to_parameters(const double &tau)
 {
     return vinecopulib::no_tau_to_parameters(tau);
 }
+
+inline Eigen::VectorXd Bb6Bicop::get_start_parameters(const double)
+{
+    Eigen::VectorXd parameters = Eigen::VectorXd::Constant(2, 1.5);
+    return parameters;
+}
 }

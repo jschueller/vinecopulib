@@ -37,6 +37,9 @@ private:
     double parameters_to_tau(const Eigen::MatrixXd &par);
 
     Eigen::MatrixXd tau_to_parameters(const double &tau);
+
+    // starting parameters for the mle
+    Eigen::VectorXd get_start_parameters(const double tau);
 };
 }
 

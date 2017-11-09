@@ -64,11 +64,4 @@ inline Eigen::VectorXd ArchimedeanBicop::hinv2(
 {
     return hinv1(tools_eigen::swap_cols(u));
 }
-
-inline Eigen::VectorXd ArchimedeanBicop::get_start_parameters(const double)
-{
-    Eigen::MatrixXd lb = this->get_parameters_lower_bounds();
-    Eigen::VectorXd parameters = lb + Eigen::VectorXd::Constant(2, 0.1);
-    return parameters;
-}
 }
