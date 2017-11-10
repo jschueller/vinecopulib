@@ -176,7 +176,7 @@ inline Eigen::VectorXd Optimizer::optimize(
         problem.setBoxConstraint(lb_, ub_);
 
         // create solver and set controls
-        // maxiterations = 100, deltax = 1e-4, delta = 1e-4 * sample size
+        // maxiterations = 100, deltax = 1e-4, deltaf = 1e-4 * sample size
         cppoptlib::LbfgsbSolver<mle_problem> solver;
         double n = static_cast<double>((static_cast<ParBicopOptData *>(data))->U.rows());
         set_controls(100, eps, eps * n);

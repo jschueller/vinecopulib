@@ -270,7 +270,10 @@ class LbfgsbSolver : public ISolver<TProblem, 1> {
         // successive function values too similar
         break;
       }
+      // conv-check
       ++this->m_current.iterations;
+      this->m_current.fDelta = fabs(f_old - f);
+      this->m_current.xDelta = (x - x_old).array().abs().maxCoeff();
       this->m_current.gradNorm = g.norm();
       this->m_status = checkConvergence(this->m_stop, this->m_current);
     }
