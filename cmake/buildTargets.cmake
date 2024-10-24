@@ -1,17 +1,17 @@
 if (VINECOPULIB_SHARED_LIB)
-    include_directories(SYSTEM ${external_includes})
-    include_directories(${vinecopulib_includes})
-
     add_library(vinecopulib SHARED ${vinecopulib_sources})
-    target_link_libraries(vinecopulib ${CMAKE_THREAD_LIBS_INIT})
+    target_include_directories(vinecopulib PRIVATE ${vinecopulib_includes})
+    target_link_libraries(vinecopulib PUBLIC ${CMAKE_THREAD_LIBS_INIT})
     set_property(TARGET vinecopulib PROPERTY POSITION_INDEPENDENT_CODE ON)
     set_target_properties(vinecopulib PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS 1)
+    target_link_libraries(vinecopulib PUBLIC Eigen3::Eigen wdm Boost::boost)
 else()
     add_library(vinecopulib INTERFACE)
-    target_include_directories(vinecopulib INTERFACE
-            $<BUILD_INTERFACE:${vinecopulib_includes}>
-            $<INSTALL_INTERFACE:include/vinecopulib>)
+    target_link_libraries(vinecopulib INTERFACE Eigen3::Eigen wdm Boost::boost)
 endif()
+
+target_include_directories(vinecopulib INTERFACE $<BUILD_INTERFACE:${vinecopulib_includes}>)
+target_include_directories (vinecopulib INTERFACE $<INSTALL_INTERFACE:include>)
 
 if(BUILD_TESTING)
 
