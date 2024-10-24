@@ -1,5 +1,6 @@
 if (VINECOPULIB_SHARED_LIB)
-    add_library(vinecopulib SHARED ${vinecopulib_sources})
+    option(BUILD_SHARED_LIBS "shared/static lib" ON)
+    add_library(vinecopulib ${vinecopulib_sources})
     target_include_directories(vinecopulib PRIVATE ${vinecopulib_includes})
     target_link_libraries(vinecopulib PUBLIC ${CMAKE_THREAD_LIBS_INIT})
     set_property(TARGET vinecopulib PROPERTY POSITION_INDEPENDENT_CODE ON)
